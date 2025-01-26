@@ -63,7 +63,7 @@ async def subscribe_and_trade(target_account):
 
                 async for message in websocket:
                     trade_data = json.loads(message)
-                    logging.info(f"Received trade data: {trade_data}")
+                    logging.info(f"Raw trade data: {trade_data}")
 
                     # Check if the message contains trade details
                     if 'solAmount' not in trade_data or 'txType' not in trade_data:
@@ -75,26 +75,40 @@ async def subscribe_and_trade(target_account):
                     action = trade_data.get("txType")  # buy or sell
                     amount = float(trade_data.get("solAmount"))  # Amount in SOL
 
+                    # Log trade type and details
+                    logging.info(f"Processing trade: Action={action}, Mint={token_mint}, Amount={amount} SOL")
+                    logging.debug(f"Trade data fields: solAmount={amount}, txType={action}, mint={token_mint}")
+
+                    # Validate action
+                    if action not in ["buy", "sell"]:
+                        logging.warning(f"Unexpected txType: {action}. Skipping.")
+                        continue
+
                     # Ensure trade is within constraints
-                    if MIN_TRADE_AMOUNT <= amount <= MAX_TRADE_AMOUNT:
-                        if total_spent_sol + amount > SPENDING_LIMIT_SOL:
-                            logging.info("Spending limit reached. Stopping bot.")
-                            return
+                    if not (MIN_TRADE_AMOUNT <= amount <= MAX_TRADE_AMOUNT):
+                        logging.warning(f"Trade amount {amount} out of bounds. Skipping.")
+                        continue
 
-                        # Log trade initiation
-                        logging.info(f"Initiating trade: Action={action}, Mint={token_mint}, Amount={amount} SOL")
+                    if total_spent_sol + amount > SPENDING_LIMIT_SOL:
+                        logging.info("Spending limit reached. Stopping bot.")
+                        return
 
-                        # Execute the trade
-                        execute_trade(action, token_mint, amount)
+                    # Log trade initiation
+                    logging.info(f"Initiating {action} trade: Mint={token_mint}, Amount={amount} SOL")
 
-                        # Update total spent
-                        total_spent_sol += amount
+                    # Execute the trade
+                    execute_trade(action, token_mint, amount)
 
-                        # Log trade completion
-                        logging.info(f"Trade completed. Total spent: {total_spent_sol} SOL")
+                    # Update total spent
+                    total_spent_sol += amount
+
+                    # Log trade completion
+                    logging.info(f"{action.capitalize()} trade completed. Total spent: {total_spent_sol} SOL")
         except Exception as e:
             logging.error(f"WebSocket error: {e}")
             await asyncio.sleep(5)
+
+
 
 
 def execute_trade(action, token_mint, amount):
