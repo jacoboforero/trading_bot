@@ -66,27 +66,24 @@ async def subscribe_and_trade(target_account):
                     logging.info(f"Raw trade data: {trade_data}")
 
                     # Check if the message contains trade details
-                    if 'solAmount' not in trade_data or 'txType' not in trade_data:
+                    if 'txType' not in trade_data:
                         logging.warning("Received non-trade data or incomplete trade data. Skipping.")
                         continue
 
                     # Extract trade details
                     token_mint = trade_data.get("mint")
                     action = trade_data.get("txType")  # buy or sell
-                    amount = float(trade_data.get("solAmount"))  # Amount in SOL
+
+                    # Override amount to always trade 0.01 SOL
+                    amount = MIN_TRADE_AMOUNT
 
                     # Log trade type and details
                     logging.info(f"Processing trade: Action={action}, Mint={token_mint}, Amount={amount} SOL")
-                    logging.debug(f"Trade data fields: solAmount={amount}, txType={action}, mint={token_mint}")
+                    logging.debug(f"Trade data fields: txType={action}, mint={token_mint}")
 
                     # Validate action
                     if action not in ["buy", "sell"]:
                         logging.warning(f"Unexpected txType: {action}. Skipping.")
-                        continue
-
-                    # Ensure trade is within constraints
-                    if not (MIN_TRADE_AMOUNT <= amount <= MAX_TRADE_AMOUNT):
-                        logging.warning(f"Trade amount {amount} out of bounds. Skipping.")
                         continue
 
                     if total_spent_sol + amount > SPENDING_LIMIT_SOL:
@@ -107,6 +104,7 @@ async def subscribe_and_trade(target_account):
         except Exception as e:
             logging.error(f"WebSocket error: {e}")
             await asyncio.sleep(5)
+
 
 
 
